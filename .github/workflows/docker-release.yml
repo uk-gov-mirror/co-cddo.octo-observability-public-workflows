@@ -1,0 +1,79 @@
+name: Docker Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbea8a63b7f380d7e3ba9284bfcf # v5.7.0
+        with:
+          images: ghcr.io/co-cddo/sbom-retriever
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push multi-arch image
+        id: push
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image size
+        run: |
+          IMAGE="ghcr.io/co-cddo/sbom-retriever:${{ github.ref_name }}"
+          SIZE=$(docker manifest inspect --verbose "$IMAGE" 2>/dev/null | \
+            python3 -c "import sys,json; data=json.load(sys.stdin); print(sum(l.get('size',0) for m in (data if isinstance(data,list) else [data]) for l in m.get('SchemaV2Manifest',{}).get('layers',[])))" 2>/dev/null || echo "0")
+          echo "Compressed image size: ${SIZE} bytes"
+          if [ "${SIZE}" -gt 52428800 ]; then
+            echo "::error::Image size ${SIZE} bytes exceeds 50MB limit"
+            exit 1
+          fi
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/co-cddo/sbom-retriever
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
