@@ -23,17 +23,17 @@
     "@actions/http-client": "4.0.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "~20.19.0",
-    "@vercel/ncc": "^0.38.4",
-    "eslint": "^10.3.0",
+    "@eslint/js": "10.0.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "26.5.1",
+    "@vercel/ncc": "0.45.0",
+    "eslint": "10.10.0",
     "husky": "9.1.7",
-    "jest": "^30.4.2",
-    "lint-staged": "^17.0.4",
-    "prettier": "^3.8.3",
-    "ts-jest": "^29.4.9",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3"
+    "jest": "30.5.1",
+    "lint-staged": "17.5.1",
+    "prettier": "3.9.6",
+    "ts-jest": "29.4.12",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "8.70.0"
   }
 }
